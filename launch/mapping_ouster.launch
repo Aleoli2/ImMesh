@@ -1,0 +1,21 @@
+<launch>
+	<!-- <arg name="bag_file" default="/home/alolivas/aurova-lab/labrobotica/dataset/rosbag/model_scientific_park/test_route1.bag"/> -->
+	<arg name="bag_file" default="/home/alolivas/aurova-lab/labrobotica/dataset/rosbag/model_scientific_park/test_route1.bag"/>
+	<rosparam command="load" file="$(find ImMesh)/config/ouster.yaml" />
+	<param name="meshing/distance_scale" type="double" value="1.0" /> 
+	<arg name="rviz" default="false" />
+	<param name="gui_font_size" type="int" value="20" /> 
+	
+	<node pkg="ImMesh" type="ImMesh_mapping" name="laserMapping" output="screen">
+	</node>
+	
+	<group if="$(arg rviz)">
+		<node launch-prefix="nice" pkg="rviz" type="rviz" name="rviz" args="-d $(find fast_lio)/rviz_cfg/loam_livox.rviz" />
+	</group>
+
+	<!-- Read the points from the images, and launch the rosbag -->
+  	<node pkg="image2pcl"   type="image2partial_pcl_node" name="image2pcl"/>
+
+	<node pkg="rosbag" type="play" name="rosbagplay" args="$(arg bag_file) --clock -d 5 -r 1.0 -s 0" required="true" />
+	<node pkg="rosbag" type="record" name="rosbagrecord" args="record -o $(find ImMesh)/Log/path /path" required="true" />
+</launch> 	
