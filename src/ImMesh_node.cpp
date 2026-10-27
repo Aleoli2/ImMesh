@@ -47,25 +47,25 @@ different license.
 #include <math.h>
 #include <mutex>
 #include <omp.h>
-#include <ros/ros.h>
+#include <rclcpp/rclcpp.hpp>
 #include <so3_math.h>
 #include <thread>
 #include <unistd.h>
 
 #include "IMU_Processing.h"
-#include <nav_msgs/Odometry.h>
-#include <nav_msgs/Path.h>
+#include <nav_msgs/msg/odometry.hpp>
+#include <nav_msgs/msg/path.hpp>
 #include <pcl/filters/voxel_grid.h>
 #include <pcl/io/pcd_io.h>
 #include <pcl/point_cloud.h>
 #include <pcl/point_types.h>
 #include <pcl_conversions/pcl_conversions.h>
-#include <sensor_msgs/PointCloud2.h>
-#include <tf/transform_broadcaster.h>
-#include <tf/transform_datatypes.h>
+#include <sensor_msgs/msg/point_cloud2.hpp>
+#include <tf2_ros/transform_broadcaster.h>
+#include <tf2/transform_datatypes.h>
 #include "preprocess.h"
-#include <geometry_msgs/Vector3.h>
-#include <livox_ros_driver/CustomMsg.h>
+#include <geometry_msgs/msg/vector3.hpp>
+#include <livox_ros_driver2/msg/custom_msg.hpp>
 #include <opencv2/opencv.hpp>
 #include "voxel_mapping.hpp"
 
@@ -146,8 +146,6 @@ extern Common_tools::Ground_plane_shader g_ground_plane_shader;
 
 ImVec4 g_mesh_color = ImVec4( 1.0, 1.0, 1.0, 1.0 );
 
-Voxel_mapping voxel_mapping;
-
 void print_help_window( bool *if_display_help_win )
 {
     ImGui::Begin( "--- Help ---", if_display_help_win );
@@ -212,10 +210,11 @@ int main( int argc, char **argv )
     Common_tools::printf_software_version();
     printf_program( "ImMesh: An Immediate LiDAR Localization and Meshing Framework" );
     
-    ros::init( argc, argv, "laserMapping" );
-    voxel_mapping.init_ros_node();
+    rclcpp::init( argc, argv);
+    auto voxel_mapping = std::make_shared<Voxel_mapping>("laserMapping");
+    voxel_mapping->init_ros_node();
 
-    GLFWwindow *window = g_gl_camera.init_openGL_and_ImGUI( "ImMesh: An Immediate LiDAR Localization and Meshing Framework", 1, voxel_mapping.m_GUI_font_size );
+    GLFWwindow *window = g_gl_camera.init_openGL_and_ImGUI( "ImMesh: An Immediate LiDAR Localization and Meshing Framework", 1, voxel_mapping->m_GUI_font_size );
     if ( !gladLoadGLLoader( ( GLADloadproc ) glfwGetProcAddress ) )
     {
         std::cout << "Failed to initialize GLAD" << std::endl;
@@ -230,33 +229,33 @@ int main( int argc, char **argv )
     }
 
     
-    g_enable_mesh_rec = voxel_mapping.m_if_enable_mesh_rec;
-    cout << "Offline point cloud name: " << ANSI_COLOR_GREEN_BOLD << voxel_mapping.m_pointcloud_file_name << ANSI_COLOR_RESET << endl;
-    if ( Common_tools::if_file_exist( voxel_mapping.m_pointcloud_file_name ) )
+    g_enable_mesh_rec = voxel_mapping->m_if_enable_mesh_rec;
+    cout << "Offline point cloud name: " << ANSI_COLOR_GREEN_BOLD << voxel_mapping->m_pointcloud_file_name << ANSI_COLOR_RESET << endl;
+    if ( Common_tools::if_file_exist( voxel_mapping->m_pointcloud_file_name ) )
     {
         pcl::PointCloud< pcl::PointXYZI > offline_pts;
         cout << "Loading data..." ;
         fflush( stdout );
-        pcl::io::loadPCDFile( voxel_mapping.m_pointcloud_file_name, offline_pts );
+        pcl::io::loadPCDFile( voxel_mapping->m_pointcloud_file_name, offline_pts );
         cout << " total of pts = " << offline_pts.points.size() << endl;
         cout << "g_map_rgb_pts_mesh.m_minimum_pts_size = " << g_map_rgb_pts_mesh.m_minimum_pts_size << endl;
         reconstruct_mesh_from_pointcloud( offline_pts.makeShared() );
     }
-    else if(voxel_mapping.m_pointcloud_file_name.length() > 5)
+    else if(voxel_mapping->m_pointcloud_file_name.length() > 5)
     {
-        cout << ANSI_COLOR_RED_BOLD << "Offline point cloud file: " << voxel_mapping.m_pointcloud_file_name <<" NOT exist!!!, Please check!!!" << ANSI_COLOR_RESET << endl;
+        cout << ANSI_COLOR_RED_BOLD << "Offline point cloud file: " << voxel_mapping->m_pointcloud_file_name <<" NOT exist!!!, Please check!!!" << ANSI_COLOR_RESET << endl;
         while(1);
     }
     
     
     cout << "====Loading parameter=====" << endl;
 
-    threshold_scale = voxel_mapping.m_meshing_distance_scale;
-    minimum_pts = voxel_mapping.m_meshing_points_minimum_scale * voxel_mapping.m_meshing_distance_scale;
-    g_meshing_voxel_size = voxel_mapping.m_meshing_voxel_resolution * voxel_mapping.m_meshing_distance_scale;
-    appending_pts_frame = voxel_mapping.m_meshing_number_of_pts_append_to_map;
-    region_size = voxel_mapping.m_meshing_region_size * voxel_mapping.m_meshing_distance_scale;
-    g_display_mesh = voxel_mapping.m_if_draw_mesh;
+    threshold_scale = voxel_mapping->m_meshing_distance_scale;
+    minimum_pts = voxel_mapping->m_meshing_points_minimum_scale * voxel_mapping->m_meshing_distance_scale;
+    g_meshing_voxel_size = voxel_mapping->m_meshing_voxel_resolution * voxel_mapping->m_meshing_distance_scale;
+    appending_pts_frame = voxel_mapping->m_meshing_number_of_pts_append_to_map;
+    region_size = voxel_mapping->m_meshing_region_size * voxel_mapping->m_meshing_distance_scale;
+    g_display_mesh = voxel_mapping->m_if_draw_mesh;
     scope_color( ANSI_COLOR_YELLOW_BOLD );
     cout << "=========Meshing config ========= " << endl;
     cout << "Threshold scale = " << threshold_scale << endl;
@@ -271,8 +270,20 @@ int main( int argc, char **argv )
     g_triangles_manager.m_region_size = region_size;
     g_map_rgb_pts_mesh.m_recent_visited_voxel_activated_time = 0;
     cout << "==== Loading parameter end =====" << endl;
+    rclcpp::executors::SingleThreadedExecutor executor;
+    executor.add_node(voxel_mapping);
 
-    std::thread thr_mapping = std::thread( &Voxel_mapping::service_LiDAR_update, &voxel_mapping );
+    bool running = true;
+    std::thread thr_mapping([&]()
+    {
+        bool ok = true;
+        while (running && ok && rclcpp::ok())
+        {
+            executor.spin_once(voxel_mapping->loop_rate->period());
+            ok = voxel_mapping->service_LiDAR_update();
+        }
+    });
+
     std::thread thr = std::thread( service_refresh_and_synchronize_triangle, 100 );
     std::this_thread::sleep_for( std::chrono::milliseconds( 100 ) );
     Common_tools::Timer disp_tim;
@@ -524,10 +535,20 @@ int main( int argc, char **argv )
         g_gl_camera.draw_frame_finish();
     }
 
+    cout << ANSI_COLOR_RESET << "Closing ImMesh" << endl;
     // Cleanup
     ImGui_ImplOpenGL3_Shutdown();
     ImGui_ImplGlfw_Shutdown();
     ImGui::DestroyContext();
+
+    running = false;
+
+    if (thr_mapping.joinable())
+    {
+        thr_mapping.join();
+    }
+
+    rclcpp::shutdown();
 
     glfwDestroyWindow( window );
     glfwTerminate();

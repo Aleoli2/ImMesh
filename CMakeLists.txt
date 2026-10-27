@@ -1,17 +1,30 @@
-cmake_minimum_required(VERSION 2.8.3)
-project(ImMesh)
+cmake_minimum_required(VERSION 3.5)
+project(im_mesh)
 
 SET(CMAKE_BUILD_TYPE "Release")
 
-ADD_COMPILE_OPTIONS(-std=c++14 )
+ADD_COMPILE_OPTIONS(-std=c++17 )
+
+# Default to C99
+if(NOT CMAKE_C_STANDARD)
+  set(CMAKE_C_STANDARD 99)
+endif()
+
+# Default to C++14
+if(NOT CMAKE_CXX_STANDARD)
+  set(CMAKE_CXX_STANDARD 14)
+endif()
+
+if(NOT CMAKE_CXX_STANDARD)
+  set(CMAKE_CXX_STANDARD 17)
+endif()
+
+if(CMAKE_COMPILER_IS_GNUCXX OR CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+  add_compile_options(-Wall -Wextra -Wpedantic)
+endif()
 
 add_definitions(-DROOT_DIR=\"${CMAKE_CURRENT_SOURCE_DIR}/\")
 
-set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fexceptions" )
-set(CMAKE_CXX_STANDARD 14)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
-set(CMAKE_CXX_EXTENSIONS OFF)
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -std=c++17 -g -O3 -ltbb -lboost_system -msse2 -msse3 -pthread -w") # -Wall
 
 message("Current CPU archtecture: ${CMAKE_SYSTEM_PROCESSOR}")
 if(CMAKE_SYSTEM_PROCESSOR MATCHES "(x86)|(X86)|(amd64)|(AMD64)" )
@@ -38,68 +51,58 @@ find_package(OpenMP QUIET)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
 set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS}   ${OpenMP_C_FLAGS}")
 
-find_package(catkin REQUIRED COMPONENTS
-  geometry_msgs
-  nav_msgs
-  sensor_msgs
-  roscpp
-  rospy
-  std_msgs
-  pcl_ros
-  tf
-  livox_ros_driver
-  message_generation
-  eigen_conversions
-  cv_bridge
-)
-
+find_package(ament_cmake REQUIRED)
+find_package(rclcpp REQUIRED)
+find_package(PCL REQUIRED)
+find_package(tf2_ros REQUIRED)
+find_package(tf2_eigen REQUIRED)
+find_package(tf2_geometry_msgs REQUIRED)
+find_package(nav_msgs REQUIRED)
+find_package(std_msgs REQUIRED)
 find_package(Eigen3 REQUIRED)
-find_package(PCL 1.6 REQUIRED)
-find_package(OpenCV REQUIRED)
+find_package(geometry_msgs REQUIRED)
+find_package(visualization_msgs REQUIRED)
+find_package(livox_ros_driver2 REQUIRED)
+find_package(sensor_msgs REQUIRED)
+find_package(cv_bridge REQUIRED)
+find_package(rosidl_default_generators REQUIRED)
+find_package(pcl_conversions REQUIRED)
 find_package(CGAL REQUIRED)
-FIND_PACKAGE(Boost REQUIRED COMPONENTS filesystem iostreams program_options system serialization)
 set(Sophus_LIBRARIES libSophus.so)
 
-message(Eigen: ${EIGEN3_INCLUDE_DIR})
+if(BUILD_TESTING)
+  find_package(ament_lint_auto REQUIRED)
+  # the following line skips the linter which checks for copyrights
+  # uncomment the line when a copyright and license is not present in all source files
+  #set(ament_cmake_copyright_FOUND TRUE)
+  # the following line skips cpplint (only works in a git repo)
+  # uncomment the line when this package is not in a git repo
+  #set(ament_cmake_cpplint_FOUND TRUE)
+  ament_lint_auto_find_test_dependencies()
+endif()
 
-include_directories(
-  ${catkin_INCLUDE_DIRS}
-  ${EIGEN3_INCLUDE_DIR}
-  ${PCL_INCLUDE_DIRS}
-  ${PYTHON_INCLUDE_DIRS}
-  # ${OpenCV_INCLUDE_DIRS}
-  ${Sophus_INCLUDE_DIRS}
-  ./include
-  
-  # ===== Meshing =====
-  ./include/ikd-Tree/
-  ./src/meshing/
-  ./src/meshing//r3live/
-  ./src/meshing//kd_tree_dev/
-  ./src/meshing//rgb_map/
-  ./src/tools/
-  ./src/tools/imgui
-  ./src/tools/shader
-  ./src/tools/openGL_libs
-  ./src
+rosidl_generate_interfaces(${PROJECT_NAME}
+  "msg/Pose6D.msg"
+  # "msg/States.msg"
 )
 
-add_message_files(
-  FILES
-  Pose6D.msg
-  # States.msg
-)
+include_directories(include)
+include_directories(${OpenCV_INCLUDE_DIR})
+include_directories(${PCL_INCLUDE_DIRS})
+include_directories(${EIGEN3_INCLUDE_DIR})
+include_directories(${PYTHON_INCLUDE_DIRS})
+include_directories(${Sophus_INCLUDE_DIRS})
+include_directories(include/ikd-Tree/)
+include_directories(src/meshing/)
+include_directories(src/meshing/r3live/)
+include_directories(src/meshing/kd_tree_dev/)
+include_directories(src/meshing/rgb_map/)
+include_directories(src/tools/)
+include_directories(src/tools/imgui)
+include_directories(src/tools/shader)
+include_directories(src/tools/openGL_libs)
+include_directories(src)
 
-generate_messages(
- DEPENDENCIES
- geometry_msgs
-)
-
-catkin_package(
-  CATKIN_DEPENDS geometry_msgs nav_msgs roscpp rospy std_msgs message_runtime 
-  DEPENDS EIGEN3 PCL OpenCV Sophus
-  INCLUDE_DIRS
-)
 
 set(FONTPATH ${CMAKE_CURRENT_SOURCE_DIR}/font/)
 add_definitions(-DFONT_DIR=\"${FONTPATH}/\")
@@ -134,7 +137,6 @@ add_executable(ImMesh_mapping
   ./src/tools/imgui/imgui_widgets.cpp
 )
 target_link_libraries(ImMesh_mapping 
-                      ${catkin_LIBRARIES} 
                       ${PCL_LIBRARIES} 
                       ${PYTHON_LIBRARIES}
                       CGAL::CGAL
@@ -145,8 +147,19 @@ target_link_libraries(ImMesh_mapping
                       ${Boost_FILESYSTEM_LIBRARY}
                       ${Boost_SERIALIZATION_LIBRARY} # serialization
                       ${CERES_LIBRARIES}
-                      pcl_common
-                      pcl_io
-                      pcl_filters
-                      pcl_kdtree
                       GL GLU glfw X11 Xrandr pthread Xi dl Xinerama Xcursor)
+
+ament_target_dependencies(ImMesh_mapping nav_msgs rclcpp tf2 tf2_ros tf2_eigen visualization_msgs PCL cv_bridge std_msgs geometry_msgs livox_ros_driver2 sensor_msgs pcl_conversions cv_bridge)
+
+install(TARGETS
+  ImMesh_mapping
+  DESTINATION lib/${PROJECT_NAME}
+)
+
+install(
+  DIRECTORY config rviz_cfg launch
+  DESTINATION share/${PROJECT_NAME}
+)
+
+ament_export_dependencies(rclcpp Eigen detection_msgs livox_ros_driver2)
+ament_package()

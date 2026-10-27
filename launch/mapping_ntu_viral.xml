@@ -1,0 +1,16 @@
+<launch>
+	<arg name="rviz" default="false" />
+	
+	<node pkg="im_mesh" exec="ImMesh_mapping" name="ImMesh_mapping" output="screen" launch-prefix=""> 
+	  <param from="$(find-pkg-share im_mesh)/config/ntu.yaml" />
+	  <param name="meshing/distance_scale"  value="1.0" /> 
+	  <param name="gui_font_size"  value="20" /> 
+	</node>	
+
+	<group if="$(var rviz)">
+		<node launch-prefix="nice" pkg="rviz2" exec="rviz2" name="rviz2" args="-d $(find-pkg-share im_mesh)/rviz_cfg/ImMesh.rviz" >
+		  <param from="$(find-pkg-share im_mesh)/config/ntu.yaml" />
+		</node>
+	</group>
+	
+</launch> 	

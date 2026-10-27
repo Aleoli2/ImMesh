@@ -50,13 +50,11 @@ different license.
 #include <mutex>
 #include <omp.h>
 #include <pcl/common/io.h>
-#include <ros/ros.h>
+#include <rclcpp/rclcpp.hpp>
 #include <so3_math.h>
 #include <thread>
 #include <unistd.h>
 #include <unordered_map>
-#include <visualization_msgs/Marker.h>
-#include <visualization_msgs/MarkerArray.h>
 
 // int layer_size[3] = {8, 5, 10};
 // float eigen_value_array[3] = {0.0025, 0.0025, 0.0005};

@@ -11,12 +11,12 @@
 // #include <fast_lio/States.h>
 // #include <fast_lio/Pose6D.h>
 #include <boost/shared_ptr.hpp>
-#include <cv_bridge/cv_bridge.h>
-#include <eigen_conversions/eigen_msg.h>
-#include <nav_msgs/Odometry.h>
+#include <cv_bridge/cv_bridge.hpp>
+#include <tf2_eigen/tf2_eigen.hpp>
+#include <nav_msgs/msg/odometry.hpp>
 #include <opencv2/opencv.hpp>
-#include <sensor_msgs/Imu.h>
-#include <tf/transform_broadcaster.h>
+#include <sensor_msgs/msg/imu.hpp>
+#include <tf2_ros/transform_broadcaster.h>
 #include <unordered_map>
 // #include <point.h>
 
@@ -153,7 +153,7 @@ struct hash< VOXEL_KEY >
 struct MeasureGroup
 {
     double                              img_offset_time;
-    deque< sensor_msgs::Imu::ConstPtr > imu;
+    deque< sensor_msgs::msg::Imu::ConstPtr > imu;
     cv::Mat                             img;
     MeasureGroup() { img_offset_time = 0.0; };
 };
@@ -178,7 +178,7 @@ struct LidarMeasureGroup
     void debug_show()
     {
         int i = 0;
-        ROS_WARN( "Lidar selector debug:" );
+        std::cout << "Lidar selector debug:" << endl;
         std::cout << "last_update_time:" << setprecision( 20 ) << this->last_update_time << endl;
         std::cout << "lidar_beg_time:" << setprecision( 20 ) << this->lidar_beg_time << endl;
         // for (auto it = this->measures.begin(); it != this->measures.end();

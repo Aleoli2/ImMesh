@@ -1,0 +1,25 @@
+<launch>
+	<arg name="bag_file" default="/home/alolivas/aurova-lab/labrobotica/dataset/rosbag/ros2/test_route1"/>
+	<arg name="rviz" default="false" />
+	
+	
+	<node pkg="im_mesh" exec="ImMesh_mapping" name="ImMesh_mapping" output="screen">
+	  <param from="$(find-pkg-share im_mesh)/config/ouster.yaml" />
+	  <param name="gui_font_size"  value="20" /> 
+	  <param name="meshing/distance_scale"  value="1.0" /> 
+	</node>
+	
+	<group if="$(var rviz)">
+		<node launch-prefix="nice" pkg="rviz2" exec="rviz2" name="rviz2" args="-d $(find-pkg-share fast_lio)/rviz_cfg/loam_livox.rviz" >
+		  <param from="$(find-pkg-share im_mesh)/config/ouster.yaml" />
+		</node>
+	</group>
+
+	<!-- Read the points from the images, and launch the rosbag -->
+  	<node pkg="image2pcl"   exec="image2partial_pcl_node" name="image2pcl">
+  	  <param from="$(find-pkg-share im_mesh)/config/ouster.yaml" />
+  	</node>
+
+	<executable cmd="ros2 bag play $(var bag_file) --clock" output="screen" />
+	<executable cmd="ros2 bag record -o /home/ubuntu/ros2_ws/src/ImMesh/Log/path /path" output="screen" />
+</launch> 	

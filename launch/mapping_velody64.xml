@@ -1,0 +1,15 @@
+<launch>	
+	<arg name="rviz" default="false" />
+	
+	<node pkg="im_mesh" exec="ImMesh_mapping" name="laserMapping" output="screen">
+	  <param from="$(find-pkg-share im_mesh)/config/velodyne.yaml" />
+	  <param name="gui_font_size"  value="20" /> 
+	  <param name="meshing/distance_scale"  value="1.5" /> 
+	</node>
+	
+	<group if="$(var rviz)">
+		<node launch-prefix="nice" pkg="rviz2" exec="rviz2" name="rviz2" args="-d $(find-pkg-share fast_lio)/rviz_cfg/loam_livox.rviz" >
+		  <param from="$(find-pkg-share im_mesh)/config/velodyne.yaml" />
+		</node>
+	</group>
+</launch> 	

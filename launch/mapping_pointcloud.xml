@@ -1,0 +1,10 @@
+<launch>
+	
+	<node pkg="im_mesh" exec="ImMesh_mapping" name="laserMapping" output="screen" launch-prefix=""> 
+	  <param from="$(find-pkg-share im_mesh)/config/offline_pointcloud.yaml" />
+	  <param name="pc_name"  value="YOUR_POINTCLOUD.pcd" />
+	  <param name="meshing/distance_scale"  value="1.0" /> 
+	  <param name="gui_font_size"  value="20" /> 
+	</node>
+
+</launch> 	

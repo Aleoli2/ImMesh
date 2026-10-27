@@ -46,12 +46,18 @@ different license.
 #include <pcl/point_types.h>
 #include <pcl_conversions/pcl_conversions.h>
 
-#include <nav_msgs/Odometry.h>
-#include <nav_msgs/Path.h>
+#include <nav_msgs/msg/odometry.hpp>
+#include <nav_msgs/msg/path.hpp>
+#include <visualization_msgs/msg/marker_array.hpp>
+#include <sensor_msgs/msg/point_cloud2.hpp>
+#include <geometry_msgs/msg/pose_stamped.hpp>
+#include <geometry_msgs/msg/quaternion.hpp>
+#include <Eigen/Dense>
 #include "IMU_Processing.h"
 #include "preprocess.h"
 #include "ikd-Tree/ikd_Tree.h"
 #include "voxel_loc.hpp"
+#include <rclcpp/rclcpp.hpp>
 
 #define INIT_TIME ( 0.0 )
 #define MAXN ( 360000 )
@@ -111,17 +117,17 @@ void BuildOptiList( const unordered_map< VOXEL_LOC, OctoTree * > &feat_map, cons
                     const Eigen::Vector3d t, const PointCloudXYZI::Ptr input_cloud, const float sigma_num,
                     const std::vector< Eigen::Matrix3d > var_list, std::vector< ptpl > &ptpl_list );
 
-void CalcQuation( const Eigen::Vector3d &vec, const int axis, geometry_msgs::Quaternion &q );
+void CalcQuation( const Eigen::Vector3d &vec, const int axis, geometry_msgs::msg::Quaternion &q );
 
-void NormalToQuaternion( const Eigen::Vector3d &normal_vec, geometry_msgs::Quaternion &q );
+void NormalToQuaternion( const Eigen::Vector3d &normal_vec, geometry_msgs::msg::Quaternion &q );
 
-void pubNormal( visualization_msgs::MarkerArray &normal_pub, const std::string normal_ns, const int normal_id, const pcl::PointXYZINormal normal_p,
+void pubNormal( visualization_msgs::msg::MarkerArray &normal_pub, const std::string normal_ns, const int normal_id, const pcl::PointXYZINormal normal_p,
                 const float alpha, const Eigen::Vector3d rgb );
 
-void pubPlane( visualization_msgs::MarkerArray &plane_pub, const std::string plane_ns, const int plane_id, const pcl::PointXYZINormal normal_p,
+void pubPlane( visualization_msgs::msg::MarkerArray &plane_pub, const std::string plane_ns, const int plane_id, const pcl::PointXYZINormal normal_p,
                const float radius, const float min_eigen_value, const float alpha, const Eigen::Vector3d rgb );
 
-void pubPlaneMap( const std::unordered_map< VOXEL_LOC, OctoTree * > &feat_map, const ros::Publisher &plane_map_pub, const V3D &position );
+void pubPlaneMap( const std::unordered_map< VOXEL_LOC, OctoTree * > &feat_map, const rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr &plane_map_pub, const V3D &position );
 
 // Similar with PCL voxelgrid filter
 void down_sampling_voxel( pcl::PointCloud< pcl::PointXYZI > &pl_feat, double voxel_size );
@@ -129,10 +135,9 @@ void down_sampling_voxel( pcl::PointCloud< pcl::PointXYZI > &pl_feat, double vox
 void calcBodyVar( Eigen::Vector3d &pb, const float range_inc, const float degree_inc, Eigen::Matrix3d &var );
 
 void reconstruct_mesh_from_pointcloud( pcl::PointCloud< pcl::PointXYZI >::Ptr frame_pts, double minimum_pts_distance = 0.01 );
-class Voxel_mapping
+class Voxel_mapping : public rclcpp::Node
 {
   public:
-    std::shared_ptr< ros::NodeHandle > m_ros_node_ptr = nullptr;
     float                              DETECTION_RANGE = 300.0f;
     const float                        MOV_THRESHOLD = 1.5f;
     mutex                              m_mutex_buffer;
@@ -203,10 +208,10 @@ class Voxel_mapping
 
     vector< BoxPointType > m_cub_need_rm;
     vector< BoxPointType > m_cub_need_add;
-    // deque<sensor_msgs::PointCloud2::ConstPtr> lidar_buffer;
+    // deque<sensor_msgs::msg::PointCloud2::ConstPtr> lidar_buffer;
     deque< PointCloudXYZI::Ptr >        m_lidar_buffer;
     deque< double >                     m_time_buffer;
-    deque< sensor_msgs::Imu::ConstPtr > m_imu_buffer;
+    deque< sensor_msgs::msg::Imu::ConstPtr > m_imu_buffer;
     deque< cv::Mat >                    m_img_buffer;
     deque< double >                     m_img_time_buffer;
     vector< bool >                      m_point_selected_surf;
@@ -263,10 +268,10 @@ class Voxel_mapping
 
     StatesGroup state;
 
-    nav_msgs::Path             m_pub_path;
-    nav_msgs::Odometry         m_odom_aft_mapped;
-    geometry_msgs::Quaternion  m_geo_Quat;
-    geometry_msgs::PoseStamped m_msg_body_pose;
+    nav_msgs::msg::Path             m_pub_path;
+    nav_msgs::msg::Odometry         m_odom_aft_mapped;
+    tf2::Quaternion                 m_geo_Quat;
+    geometry_msgs::msg::PoseStamped m_msg_body_pose;
 
     BoxPointType m_LocalMap_Points;
     bool         m_localmap_Initialized = false;
@@ -286,8 +291,39 @@ class Voxel_mapping
     int         m_meshing_number_of_pts_append_to_map = 5000;
     std::string m_pointcloud_file_name = std::string( " " );
     // PointCloudXYZRGB::Ptr pcl_wait_pub_RGB(new PointCloudXYZRGB(500000, 1));
+    rclcpp::Subscription<livox_ros_driver2::msg::CustomMsg>::SharedPtr sub_pcl;
+    rclcpp::Subscription<sensor_msgs::msg::PointCloud2>::SharedPtr sub_pcl2;
 
-    Voxel_mapping()
+    rclcpp::Subscription<sensor_msgs::msg::Imu>::SharedPtr sub_imu;
+    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pubLaserCloudFullRes;
+    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pubLaserCloudVoxel;
+    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pubVisualCloud;
+    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pubSubVisualCloud;
+    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pubLaserCloudEffect;
+    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr pubLaserCloudMap;
+    rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr pubOdomAftMapped;
+    rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr pubPath;
+    rclcpp::Publisher<visualization_msgs::msg::Marker>::SharedPtr plane_pub;
+    rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr voxel_pub;
+
+    // #ifdef DEPLOY
+    rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr mavros_pose_publisher;
+    /*** variables definition ***/
+#ifndef USE_IKFOM
+    VD( DIM_STATE ) solution;
+    MD( DIM_STATE, DIM_STATE ) G, H_T_H, I_STATE;
+    V3D         rot_add, t_add;
+    StatesGroup state_propagat;
+    PointType   pointOri, pointSel, coeff;
+#endif
+    FILE *fp_kitti;
+    string kitti_log_dir;
+    int    effect_feat_num = 0, frame_num = 0;
+    double deltaT, deltaR, aver_time_consu = 0, aver_time_icp = 0, aver_time_match = 0, aver_time_solve = 0, aver_time_const_H_time = 0;
+    shared_ptr< ImuProcess > p_imu;
+    std::shared_ptr<rclcpp::Rate> loop_rate;
+
+    Voxel_mapping(std::string node_name) : Node(node_name)
     {
         m_extrin_T = std::vector< double >( 3, 0.0 );
         m_extrin_R = std::vector< double >( 9, 0.0 );
@@ -354,26 +390,25 @@ class Voxel_mapping
 
     void laser_map_fov_segment();
 
-    void standard_pcl_cbk( const sensor_msgs::PointCloud2::ConstPtr &msg );
+    void standard_pcl_cbk( const sensor_msgs::msg::PointCloud2::SharedPtr msg );
 
-    void livox_pcl_cbk( const livox_ros_driver::CustomMsg::ConstPtr &msg );
+    void livox_pcl_cbk( const livox_ros_driver2::msg::CustomMsg::SharedPtr msg );
 
-    void imu_cbk( const sensor_msgs::Imu::ConstPtr &msg_in );
+    void imu_cbk( const sensor_msgs::msg::Imu::SharedPtr msg_in );
 
     bool sync_packages( LidarMeasureGroup &meas );
 
     void map_incremental_grow();
 
-    void publish_voxel_point( const ros::Publisher &pubLaserCloudVoxel, const PointCloudXYZI::Ptr &pcl_wait_pub );
+    void publish_voxel_point( const rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr &pubLaserCloudVoxel, const PointCloudXYZI::Ptr &pcl_wait_pub );
 
-    void publish_visual_world_map( const ros::Publisher &pubVisualCloud );
+    void publish_visual_world_map( const rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr &pubVisualCloud );
 
-    void publish_visual_world_sub_map( const ros::Publisher &pubSubVisualCloud );
+    void publish_visual_world_sub_map( const rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr &pubSubVisualCloud );
 
-    void publish_effect_world( const ros::Publisher &pubLaserCloudEffect );
+    void publish_effect_world( const rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr &pubLaserCloudEffect );
 
-    void publish_map( const ros::Publisher &pubLaserCloudMap );
-
+        void publish_map( const rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr &pubLaserCloudMap );
     template < typename T >
     void set_pose_timestamp( T &out )
     {
@@ -387,21 +422,21 @@ class Voxel_mapping
         out.position.y = state.pos_end( 1 );
         out.position.z = state.pos_end( 2 );
 #endif
-        out.orientation.x = m_geo_Quat.x;
-        out.orientation.y = m_geo_Quat.y;
-        out.orientation.z = m_geo_Quat.z;
-        out.orientation.w = m_geo_Quat.w;
+        out.orientation.x = m_geo_Quat.x();
+        out.orientation.y = m_geo_Quat.y();
+        out.orientation.z = m_geo_Quat.z();
+        out.orientation.w = m_geo_Quat.w();
     }
 
-    void publish_odometry( const ros::Publisher &pubOdomAftMapped );
+    void publish_odometry( const rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr &pubOdomAftMapped );
 
-    void publish_mavros( const ros::Publisher &mavros_pose_publisher );
+    void publish_mavros( const rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr &mavros_pose_publisher );
 
-    void publish_frame_world( const ros::Publisher &pubLaserCloudFullRes, const int point_skip );
+    void publish_frame_world( const rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr &pubLaserCloudFullRes, const int point_skip );
 
-    void publish_path( const ros::Publisher pubPath );
+    void publish_path( const rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr pubPath );
 
-    void read_ros_parameters( ros::NodeHandle &nh );
+    void read_ros__parameters();
 
     void transformLidar( const Eigen::Matrix3d rot, const Eigen::Vector3d t, const PointCloudXYZI::Ptr &input_cloud,
                          pcl::PointCloud< pcl::PointXYZI >::Ptr &trans_cloud );
@@ -411,5 +446,5 @@ class Voxel_mapping
     /*** EKF update ***/
     void lio_state_estimation( StatesGroup &state_propagat );
     void init_ros_node();
-    int  service_LiDAR_update();
+    bool  service_LiDAR_update();
 };

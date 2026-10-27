@@ -61,6 +61,7 @@ Dr. Fu Zhang < fuzhang@hku.hk >.
 #include <iomanip>
 #include "tools_color_printf.hpp"
 #include "tools_timer.hpp"
+#include <memory>
 // #define FILE_LOGGER_VERSION      "V1.0"
 // #define FILE_LOGGER_VERSION_INFO "First version"
 

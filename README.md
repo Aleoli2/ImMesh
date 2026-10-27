@@ -59,12 +59,15 @@ Following this [ROS Installation](http://wiki.ros.org/ROS/Installation) to insta
 ```
 sudo apt-get install ros-XXX-cv-bridge ros-XXX-tf ros-XXX-message-filters ros-XXX-image-transport ros-XXX-image-transport*
 ```
-**NOTICE:** remember to replace "XXX" on above command as your ROS distributions, for example, if your use ROS-kinetic, the command should be:<br>
+**NOTICE:** remember to replace "XXX" on above command as your ROS distributions, for example, if your use ROS-jazzy, the command should be:<br>
 ```
-sudo apt-get install ros-kinetic-cv-bridge ros-kinetic-tf ros-kinetic-message-filters ros-kinetic-image-transport*
+sudo apt-get install ros-jazzy-cv-bridge ros-jazzy-tf ros-jazzy-message-filters ros-jazzy-image-transport*
 ```
-### 3.2. **livox_ros_driver**
-Follow this [livox_ros_driver Installation](https://github.com/Livox-SDK/livox_ros_driver).
+### 3.2. **livox_ros_driver2**
+```
+cd PATH/TO/aurova_ws/src
+git clone https://github.com/Aleoli2/livox_ros_driver2.git
+```
 
 ### 3.3 **CGAL** and **OpenGL**
 ```
@@ -75,11 +78,11 @@ sudo apt-get install -y libcgal-dev libxkbcommon-x11-dev
 ## 4. Build ImMesh on ROS:
 Clone this repository and catkin_make:
 ```
-cd ~/catkin_ws/src
-git clone https://github.com/hku-mars/ImMesh.git
+cd PATH/TO/aurova_ws/src
+git clone https://github.com/Aleoli2/ImMesh.git --branch ros2
 cd ../
-catkin_make
-source ~/catkin_ws/devel/setup.bash
+colcon build --symlink-install --cmake-args -DCMAKE_BUILD_TYPE=Release --packages-up-to im_mesh
+source install/setup.bash
 ```
 
 ## 5. Run our examples
@@ -88,10 +91,12 @@ ImMesh is capable run with solid-state LiDAR (e.g., Livox-avia form ([r3live_dat
 
 Our example rosbag files for evaluation can be download from our [Google drive](https://drive.google.com/drive/folders/15i-TRa0EA8BCbNdARVqPMDsU9JOlagVF?usp=sharing) or [Baidu-NetDisk [百度网盘]](https://pan.baidu.com/s/1zmVxkcwOSul8oTBwaHfuFg) (code提取码: wwxw). 
 
+[The rosbags should be converted to ROS 2 bags!!!!](https://ternaris.gitlab.io/rosbags/index.html)
+
 After you have downloaded our bag files, you can now run our example ^_^
 ```
-roslaunch ImMesh mapping_avia.launch
-rosbag play YOUR_DOWNLOADED.bag
+ros2 launch im_mesh mapping_avia.launch
+ros2 bag play YOUR_DOWNLOADED.bag
 ``` 
 
 ### 5.2 Mechanical spinning LiDAR (e.g., Velodyne and Ouster LiDARs)
@@ -103,20 +108,20 @@ After you have preparation of rosbag files, you can now run our example with:
 
 For [KITTI-dataset](https://www.cvlibs.net/datasets/kitti/eval_odometry.php):
 ```
-roslaunch ImMesh mapping_velody64.launch
-rosbag play YOUR_DOWNLOADED.bag
+ros2 launch im_mesh mapping_velody64.launch
+ros2 bag play YOUR_DOWNLOADED.bag
 ``` 
 
 For [NCLT-dataset](https://www.cvlibs.net/datasets/kitti/eval_odometry.php):
 ```
-roslaunch ImMesh mapping_nclt.launch
-rosbag play YOUR_DOWNLOADED.bag
+ros2 launch im_mesh mapping_nclt.launch
+ros2 bag play YOUR_DOWNLOADED.bag
 ``` 
 
 For [NTU-VIRAL](https://ntu-aris.github.io/ntu_viral_dataset):
 ```
-roslaunch ImMesh mapping_ntu_viral.launch
-rosbag play YOUR_DOWNLOADED.bag
+ros2 launch im_mesh mapping_ntu_viral.launch
+ros2 bag play YOUR_DOWNLOADED.bag
 ``` 
 
 ### 5.2 Fast offline mesh reconstruction with given pointcloud file
@@ -130,7 +135,7 @@ ImMesh can also perform the fast offline mesh reconstruction with given point cl
 
 Then, perform the mesh reconstruction with:
 ```
-roslaunch ImMesh mapping_pointcloud.launch
+ros2 launch im_mesh mapping_pointcloud.launch
 ```
 
 ## 6. Result and tips.
